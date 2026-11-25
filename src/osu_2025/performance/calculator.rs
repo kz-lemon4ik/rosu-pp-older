@@ -461,7 +461,12 @@ impl OsuPerformanceCalculator<'_> {
         let limit_value = ok_hit_window / f64::sqrt(3.0);
 
         // * If precision is not enough to compute true deviation - use limit value
-        if p_lower_bound == 0.0 || random_value >= 1.0 || deviation > limit_value {
+        if p_lower_bound == 0.0
+            || random_value.is_nan()
+            || random_value >= 1.0
+            || deviation.is_nan()
+            || deviation > limit_value
+        {
             deviation = limit_value;
         }
 
