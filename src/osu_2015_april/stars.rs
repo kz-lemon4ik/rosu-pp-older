@@ -31,14 +31,14 @@ pub fn stars(map: &Beatmap, mods: u32) -> OsuDifficultyAttributes {
         _ => 1.0,
     };
 
-    let mut diff_attrs = OsuDifficultyAttributes {
+    let mut diff_attributes = OsuDifficultyAttributes {
         ar: adjusted_map_attrs.ar,
         od: modify_od(map.od as f64, map_attrs.clock_rate(), mod_mult),
         ..Default::default()
     };
 
     if map.hit_objects.len() < 2 {
-        return diff_attrs;
+        return diff_attributes;
     }
 
     let section_len = SECTION_LEN * map_attrs.clock_rate() as f32;
@@ -58,9 +58,8 @@ pub fn stars(map: &Beatmap, mods: u32) -> OsuDifficultyAttributes {
             h,
             map,
             radius,
-            scaling_factor,
             &mut ticks_buf,
-            &mut diff_attrs,
+            &mut diff_attributes,
             &mut curve_bufs,
         )
     });
@@ -69,8 +68,7 @@ pub fn stars(map: &Beatmap, mods: u32) -> OsuDifficultyAttributes {
     let mut speed = Skill::new(SkillKind::Speed);
 
     // First object has no predecessor and thus no strain, handle distinctly
-    let mut current_section_end =
-        (map.hit_objects[0].start_time as f32 / section_len).ceil() * section_len;
+    let mut current_section_end = 2.0 * section_len;
 
     let mut prev = hit_objects.next().unwrap();
 
@@ -102,23 +100,19 @@ pub fn stars(map: &Beatmap, mods: u32) -> OsuDifficultyAttributes {
 
         aim.process(&h);
         speed.process(&h);
-
         prev = curr;
     }
-
-    aim.save_current_peak();
-    speed.save_current_peak();
 
     let aim_strain = aim.difficulty_value().sqrt() * DIFFICULTY_MULTIPLIER;
     let speed_strain = speed.difficulty_value().sqrt() * DIFFICULTY_MULTIPLIER;
 
     let stars = aim_strain + speed_strain + (aim_strain - speed_strain).abs() / 2.0;
 
-    diff_attrs.stars = stars as f64;
-    diff_attrs.speed_strain = speed_strain as f64;
-    diff_attrs.aim_strain = aim_strain as f64;
+    diff_attributes.stars = stars as f64;
+    diff_attributes.speed_strain = speed_strain as f64;
+    diff_attributes.aim_strain = aim_strain as f64;
 
-    diff_attrs
+    diff_attributes
 }
 
 #[derive(Clone, Debug, Default)]
@@ -135,7 +129,6 @@ pub struct OsuDifficultyAttributes {
     pub max_combo: usize,
 }
 
-#[derive(Clone, Debug)]
 pub struct OsuPerformanceAttributes {
     pub difficulty: OsuDifficultyAttributes,
     pub pp: f64,

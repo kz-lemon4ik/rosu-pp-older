@@ -1,6 +1,6 @@
 use rosu_pp::Beatmap;
 
-use crate::util::mods::Mods;
+use crate::util::mods::{Mods, UNRANKED_MODS};
 
 use super::stars::{stars, OsuDifficultyAttributes, OsuPerformanceAttributes};
 
@@ -42,6 +42,7 @@ pub struct OsuPP<'m> {
     n100: Option<u32>,
     n50: Option<u32>,
     n_misses: u32,
+    touch_device_penalty: bool,
 }
 
 impl<'m> OsuPP<'m> {
@@ -58,7 +59,16 @@ impl<'m> OsuPP<'m> {
             n100: None,
             n50: None,
             n_misses: 0,
+            touch_device_penalty: false,
         }
+    }
+
+    /// Apply the touch device aim penalty that osu! added on 2017-12-06.
+    #[inline]
+    pub fn touch_device_penalty(mut self, apply: bool) -> Self {
+        self.touch_device_penalty = apply;
+
+        self
     }
 
     /// [`OsuAttributeProvider`] is implemented by [`DifficultyAttributes`](crate::osu::DifficultyAttributes)
@@ -216,7 +226,9 @@ impl<'m> OsuPP<'m> {
             }
 
             let numerator = self.n50.unwrap() + self.n100.unwrap() * 2 + self.n300.unwrap() * 6;
-            self.acc.replace(numerator as f32 / n_objects as f32 / 6.0);
+            let total = self.total_hits().max(1);
+            self.acc
+                .replace((numerator as f32 / total as f32 / 6.0).clamp(0.0, 1.0));
         }
     }
 
@@ -252,6 +264,13 @@ impl<'m> OsuPP<'m> {
             .powf(1.0 / 1.1)
             * multiplier;
 
+        // Relax, Autoplay and Autopilot give no pp
+        let pp = if self.mods & UNRANKED_MODS == 0 {
+            pp
+        } else {
+            0.0
+        };
+
         OsuPerformanceAttributes {
             difficulty: self.attributes.unwrap(),
             pp_acc: acc_value as f64,
@@ -265,8 +284,14 @@ impl<'m> OsuPP<'m> {
     fn compute_aim_value(&self, total_hits: f32) -> f32 {
         let attributes = self.attributes.as_ref().unwrap();
 
-        let mut aim_value =
-            (5.0 * (attributes.aim_strain as f32 / 0.0675).max(1.0) - 4.0).powi(3) / 100_000.0;
+        // TD penalty
+        let raw_aim = if self.touch_device_penalty && self.mods.td() {
+            attributes.aim_strain.powf(0.8) as f32
+        } else {
+            attributes.aim_strain as f32
+        };
+
+        let mut aim_value = (5.0 * (raw_aim / 0.0675).max(1.0) - 4.0).powi(3) / 100_000.0;
 
         // Longer maps are worth more
         let len_bonus = 0.95
@@ -373,10 +398,7 @@ impl<'m> OsuPP<'m> {
     }
 
     fn total_hits(&self) -> u32 {
-        let n_objects = self.map.hit_objects.len() as u32;
-
-        (self.n300.unwrap_or(0) + self.n100.unwrap_or(0) + self.n50.unwrap_or(0) + self.n_misses)
-            .min(n_objects)
+        self.n300.unwrap_or(0) + self.n100.unwrap_or(0) + self.n50.unwrap_or(0) + self.n_misses
     }
 }
 

@@ -23,6 +23,7 @@ pub(crate) struct OsuObject {
     pub(crate) end_pos: Pos,
     // circle: Some(0.0) | slider: Some(_) | spinner: None
     pub(crate) travel_dist: Option<f32>,
+    pub(crate) is_slider: bool,
 }
 
 impl OsuObject {
@@ -30,7 +31,6 @@ impl OsuObject {
         h: &HitObject,
         map: &Beatmap,
         radius: f32,
-        scaling_factor: f32,
         ticks: &mut Vec<f64>,
         attrs: &mut OsuDifficultyAttributes,
         curve_bufs: &mut CurveBuffers,
@@ -46,6 +46,7 @@ impl OsuObject {
                     pos: h.pos,
                     end_pos: h.pos,
                     travel_dist: Some(0.0),
+                    is_slider: false,
                 }
             }
             HitObjectKind::Slider(Slider {
@@ -101,12 +102,19 @@ impl OsuObject {
                 // Called on each slider object except for the head.
                 // Increases combo and adjusts `end_pos` and `travel_dist`
                 // w.r.t. the object position at the given time on the slider curve.
+                let start = h.start_time as i32;
+                let span = span_duration as i32;
+
                 let mut compute_vertex = |time: f64| {
                     attrs.max_combo += 1;
 
-                    let mut progress = (time - h.start_time) / span_duration;
+                    let mut progress = if span == 0 {
+                        0.0
+                    } else {
+                        f64::from((time as i32 - start) as f32 / span as f32)
+                    };
 
-                    if progress % 2.0 >= 1.0 {
+                    if progress % 2.0 > 1.0 {
                         progress = 1.0 - progress % 1.0;
                     } else {
                         progress %= 1.0;
@@ -174,18 +182,18 @@ impl OsuObject {
                 }
 
                 // Slider tail
-                let final_span_start_time = h.start_time + *repeats as f64 * span_duration;
-                let final_span_end_time = (h.start_time + total_duration / 2.0)
-                    .max(final_span_start_time + span_duration - LEGACY_LAST_TICK_OFFSET);
-                compute_vertex(final_span_end_time);
-
-                travel_dist *= scaling_factor;
+                let legacy_tail =
+                    (h.start_time + total_duration / 2.0).max(end_time - LEGACY_LAST_TICK_OFFSET);
+                compute_vertex(legacy_tail);
+                compute_vertex(end_time);
+                attrs.max_combo -= 1;
 
                 Self {
                     time: h.start_time as f32,
                     pos: h.pos,
                     end_pos,
                     travel_dist: Some(travel_dist),
+                    is_slider: true,
                 }
             }
             HitObjectKind::Spinner { .. } | HitObjectKind::Hold { .. } => {
@@ -196,6 +204,7 @@ impl OsuObject {
                     pos: h.pos,
                     end_pos: h.pos,
                     travel_dist: None,
+                    is_slider: false,
                 }
             }
         }

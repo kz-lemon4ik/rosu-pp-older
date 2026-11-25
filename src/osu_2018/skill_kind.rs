@@ -13,9 +13,12 @@ pub(crate) enum SkillKind {
 impl SkillKind {
     pub(crate) fn strain_value_of(self, current: &DifficultyObject) -> f32 {
         match self {
-            Self::Aim => current.dist.powf(0.99) / current.delta,
+            Self::Aim => {
+                (current.travel_dist.powf(0.99) + current.jump_dist.powf(0.99))
+                    / current.strain_time
+            }
             Self::Speed => {
-                let dist = current.dist;
+                let dist = current.travel_dist + current.jump_dist;
 
                 let speed_value = if dist > SINGLE_SPACING_TRESHOLD {
                     2.5
@@ -31,7 +34,7 @@ impl SkillKind {
                     0.95
                 };
 
-                speed_value / current.delta
+                speed_value / current.strain_time
             }
         }
     }

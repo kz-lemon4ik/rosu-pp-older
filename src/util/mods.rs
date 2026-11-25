@@ -5,6 +5,9 @@ use rosu_pp::{
     GameMods,
 };
 
+/// Relax, Autoplay and Autopilot: scores with these mods gave no pp in osu!stable.
+pub(crate) const UNRANKED_MODS: u32 = (1 << 7) | (1 << 11) | (1 << 13);
+
 pub trait Mods {
     fn nf(&self) -> bool;
     fn ez(&self) -> bool;

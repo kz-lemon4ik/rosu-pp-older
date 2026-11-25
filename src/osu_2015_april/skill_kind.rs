@@ -14,14 +14,11 @@ impl SkillKind {
     pub(crate) fn strain_value_of(self, current: &DifficultyObject) -> f32 {
         match self {
             Self::Aim => {
-                let aim_value = apply_diminishing_exp(current.dist)
-                    + (current.travel_dist > 0.0) as u8 as f32
-                        * apply_diminishing_exp(current.travel_dist);
-
-                aim_value / current.delta
+                (current.travel_dist.powf(0.99) + current.jump_dist.powf(0.99))
+                    / current.strain_time
             }
             Self::Speed => {
-                let dist = current.dist + current.travel_dist;
+                let dist = current.travel_dist + current.jump_dist;
 
                 let speed_value = if dist > SINGLE_SPACING_TRESHOLD {
                     2.5
@@ -37,13 +34,8 @@ impl SkillKind {
                     0.95
                 };
 
-                speed_value / current.delta
+                speed_value / current.strain_time
             }
         }
     }
-}
-
-#[inline]
-fn apply_diminishing_exp(val: f32) -> f32 {
-    val.powf(0.99)
 }

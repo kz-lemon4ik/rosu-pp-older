@@ -58,7 +58,6 @@ pub fn stars(map: &Beatmap, mods: u32) -> OsuDifficultyAttributes {
             h,
             map,
             radius,
-            scaling_factor,
             &mut ticks_buf,
             &mut diff_attributes,
             &mut curve_bufs,

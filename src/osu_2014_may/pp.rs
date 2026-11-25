@@ -1,6 +1,6 @@
 use rosu_pp::Beatmap;
 
-use crate::util::mods::Mods;
+use crate::util::mods::{Mods, UNRANKED_MODS};
 
 use super::stars::{stars, OsuDifficultyAttributes, OsuPerformanceAttributes};
 
@@ -250,6 +250,13 @@ impl<'m> OsuPP<'m> {
         let pp = (aim_value.powf(1.1) + speed_value.powf(1.1) + acc_value.powf(1.1))
             .powf(1.0 / 1.1)
             * multiplier;
+
+        // Relax, Autoplay and Autopilot give no pp
+        let pp = if self.mods & UNRANKED_MODS == 0 {
+            pp
+        } else {
+            0.0
+        };
 
         OsuPerformanceAttributes {
             difficulty: self.attributes.unwrap(),
